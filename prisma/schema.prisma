@@ -1,0 +1,213 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── AUTH.JS (IDs only) ──────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  role          UserRole  @default(INSTRUCTIONAL_DESIGNER)
+  accounts      Account[]
+  sessions      Session[]
+  createdActivities Activity[] @relation("CreatedBy")
+  testSessions      CoachSession[] @relation("TestSessions")
+  createdAt     DateTime  @default(now())
+}
+
+enum UserRole {
+  INSTRUCTIONAL_DESIGNER
+  ADMIN
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("auth_sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ─── LTI PLATFORM REGISTRATION ──────────────────────────
+
+model Platform {
+  id                    String   @id @default(cuid())
+  lmsName               String?
+  issuer                String
+  clientId              String
+  authorizationEndpoint String
+  tokenEndpoint         String
+  jwksUri               String
+  deploymentId          String?
+  active                Boolean  @default(true)
+  ltiLaunches           LtiLaunch[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([issuer, clientId])
+}
+
+// ─── ACTIVITIES (ID-authored Socratic assignments) ──────
+
+model Activity {
+  id                 String    @id @default(cuid())
+  name               String
+  subjectTag         String
+
+  assignmentText     String    @db.Text
+  briefContext       String    @db.Text
+
+  rigor              RigorLevel @default(STANDARD)
+  focusInstructions  String?   @db.Text
+
+  turnLimit          Int       @default(10)
+  timerMinutes       Int?
+
+  attemptsAllowed    Int       @default(1)
+
+  coachName          String    @default("Socrates")
+  coachTone          CoachTone @default(FORMAL)
+
+  published          Boolean   @default(false)
+
+  createdById        String
+  createdBy          User      @relation("CreatedBy", fields: [createdById], references: [id])
+
+  launches           LtiLaunch[]
+  sessions           CoachSession[]
+
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+enum RigorLevel {
+  INTRODUCTORY
+  STANDARD
+  RIGOROUS
+  EXAM_LEVEL
+}
+
+enum CoachTone {
+  FORMAL
+  CONVERSATIONAL
+  EXAM_STYLE
+}
+
+// ─── LTI LAUNCH CONTEXT ─────────────────────────────────
+
+model LtiLaunch {
+  id             String   @id @default(cuid())
+  platformId     String
+  platform       Platform @relation(fields: [platformId], references: [id])
+  activityId     String
+  activity       Activity @relation(fields: [activityId], references: [id])
+
+  ltiUserId      String
+  courseId        String
+  courseName     String?
+  resourceLinkId String
+
+  session        CoachSession?
+  createdAt      DateTime @default(now())
+
+  @@index([ltiUserId, activityId])
+}
+
+// ─── COACH SESSIONS ─────────────────────────────────────
+
+model CoachSession {
+  id              String    @id @default(cuid())
+  activityId      String
+  activity        Activity  @relation(fields: [activityId], references: [id])
+  launchId        String?   @unique
+  launch          LtiLaunch? @relation(fields: [launchId], references: [id])
+
+  isTest          Boolean   @default(false)
+  testerId        String?
+  tester          User?     @relation("TestSessions", fields: [testerId], references: [id])
+
+  studentName     String?
+  studentLtiSub   String
+
+  turnCount       Int       @default(0)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  endReason       EndReason?
+
+  countsAsAttempt Boolean   @default(false)
+
+  messages        Message[]
+  report          SessionReport?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([activityId, studentLtiSub])
+}
+
+enum EndReason {
+  TURN_LIMIT
+  TIMER
+  STUDENT_ENDED
+  DISCONNECTED
+}
+
+model Message {
+  id         String       @id @default(cuid())
+  sessionId  String
+  session    CoachSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role       String
+  content    String       @db.Text
+  createdAt  DateTime     @default(now())
+}
+
+model SessionReport {
+  id                  String       @id @default(cuid())
+  sessionId           String       @unique
+  session             CoachSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  analysisJson        Json
+  elementsAddressed   String[]
+  elementsMissed      String[]
+  depthReached        String
+  reasoningQuality    String
+  gapsFlagged         String[]
+
+  createdAt           DateTime     @default(now())
+}
