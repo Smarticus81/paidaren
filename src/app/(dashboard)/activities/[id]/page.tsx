@@ -43,6 +43,12 @@ export default async function ActivityDetailPage({ params }: { params: Promise<{
         </div>
         <div className="flex gap-2 items-center">
           <Link
+            href={`/activities/${id}/preview`}
+            className="border border-accent text-accent px-4 py-2 rounded-lg text-sm font-medium hover:bg-accent-light transition-colors"
+          >
+            Student View
+          </Link>
+          <Link
             href={`/activities/${id}/sessions`}
             className="border border-border text-foreground px-4 py-2 rounded-lg text-sm font-medium hover:border-muted transition-colors"
           >

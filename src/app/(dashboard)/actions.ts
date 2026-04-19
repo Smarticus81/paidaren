@@ -75,7 +75,7 @@ export async function saveDraftAndTest(
       isTest: true,
       testerId: session.user.id,
       studentLtiSub: `test-${session.user.id}`,
-      studentName: session.user.name ?? "Instructor",
+      studentName: "[student_name]",
       startedAt: new Date(),
     },
   });
@@ -84,7 +84,7 @@ export async function saveDraftAndTest(
     activityId,
     sessionId: coachSession.id,
     coachName: parsed.coachName,
-    studentName: session.user.name ?? "Instructor",
+    studentName: "[student_name]",
   };
 }
 
