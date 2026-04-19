@@ -1,0 +1,16 @@
+{
+  "functions": {
+    "src/app/api/coach/message/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/coach/open/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/coach/complete/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/report/[sessionId]/[format]/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}
