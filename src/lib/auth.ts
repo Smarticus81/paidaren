@@ -6,7 +6,7 @@ import { prisma } from "./db";
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   providers: [
-    Resend({ from: process.env.EMAIL_FROM ?? "noreply@paidaren.com", apiKey: process.env.RESEND_API_KEY }),
+    Resend({ from: process.env.EMAIL_FROM ?? "onboarding@resend.dev", apiKey: process.env.RESEND_API_KEY }),
   ],
   pages: { signIn: "/signin" },
   session: { strategy: "database" },
