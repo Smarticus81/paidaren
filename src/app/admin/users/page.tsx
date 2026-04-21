@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin";
 import { setUserDisabled, updateUserRole } from "../actions";
+import { InviteForm } from "./InviteForm";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ export default async function AdminUsersPage() {
 
   return (
     <div>
-      <div className="flex items-end justify-between mb-8">
+      <div className="flex items-end justify-between mb-6">
         <div>
           <h1 className="text-3xl text-foreground mb-1">Users</h1>
           <p className="text-muted text-sm">
@@ -36,6 +37,8 @@ export default async function AdminUsersPage() {
           </p>
         </div>
       </div>
+
+      <InviteForm />
 
       <div className="bg-surface border border-border rounded-2xl overflow-hidden">
         <table className="w-full text-sm">

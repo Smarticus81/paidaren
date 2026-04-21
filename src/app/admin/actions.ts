@@ -7,6 +7,68 @@ import { logEvent } from "@/lib/telemetry";
 
 const UserRoleSchema = z.enum(["INSTRUCTIONAL_DESIGNER", "ADMIN"]);
 
+const InviteSchema = z.object({
+  email: z.string().email().transform((v) => v.trim().toLowerCase()),
+  role: UserRoleSchema,
+});
+
+export type InviteResult =
+  | { ok: true; created: boolean; userId: string; email: string; role: "ADMIN" | "INSTRUCTIONAL_DESIGNER" }
+  | { ok: false; error: string };
+
+export async function inviteUser(_prev: InviteResult | null, formData: FormData): Promise<InviteResult> {
+  const admin = await requireAdmin();
+
+  const parsed = InviteSchema.safeParse({
+    email: formData.get("email"),
+    role: formData.get("role"),
+  });
+  if (!parsed.success) {
+    return { ok: false, error: "Enter a valid email address." };
+  }
+
+  const { email, role } = parsed.data;
+
+  const existing = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, role: true, disabled: true },
+  });
+
+  let userId: string;
+  let created = false;
+
+  if (existing) {
+    await prisma.user.update({
+      where: { id: existing.id },
+      data: { role, disabled: false },
+    });
+    userId = existing.id;
+  } else {
+    const user = await prisma.user.create({
+      data: { email, role },
+      select: { id: true },
+    });
+    userId = user.id;
+    created = true;
+  }
+
+  await logEvent({
+    kind: created ? "admin.user.invited" : "admin.user.role_changed",
+    severity: "WARN",
+    message: created
+      ? `Invited ${email} as ${role}`
+      : `Granted ${role} to existing user ${email}`,
+    userId: admin.id,
+    userEmail: admin.email,
+    metadata: { targetUserId: userId, targetEmail: email, role, created },
+  });
+
+  revalidatePath("/admin/users");
+  revalidatePath("/admin");
+
+  return { ok: true, created, userId, email, role };
+}
+
 export async function updateUserRole(userId: string, role: string): Promise<void> {
   const admin = await requireAdmin();
   const parsed = UserRoleSchema.parse(role);
