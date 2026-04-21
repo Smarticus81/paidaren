@@ -1,12 +1,16 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-if (!process.env.ANTHROPIC_API_KEY) {
-  throw new Error("ANTHROPIC_API_KEY is required");
-}
+let _client: Anthropic | null = null;
 
-export const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+function getClient(): Anthropic {
+  if (_client) return _client;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    throw new Error("ANTHROPIC_API_KEY is required");
+  }
+  _client = new Anthropic({ apiKey });
+  return _client;
+}
 
 export const SOCRATES_MODEL = "claude-sonnet-4-5";
 
@@ -15,7 +19,7 @@ export async function* streamClaude(params: {
   messages: Array<{ role: "user" | "assistant"; content: string }>;
   maxTokens?: number;
 }) {
-  const stream = anthropic.messages.stream({
+  const stream = getClient().messages.stream({
     model: SOCRATES_MODEL,
     max_tokens: params.maxTokens ?? 400,
     system: params.system,
@@ -33,7 +37,7 @@ export async function generateStructuredAnalysis(params: {
   system: string;
   user: string;
 }) {
-  const response = await anthropic.messages.create({
+  const response = await getClient().messages.create({
     model: SOCRATES_MODEL,
     max_tokens: 1500,
     system: params.system,
