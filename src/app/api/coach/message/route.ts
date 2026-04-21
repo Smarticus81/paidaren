@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { streamClaude } from "@/lib/anthropic";
 import { buildSocraticSystemPrompt } from "@/lib/socratic-prompt";
 import { shouldEndSession, promoteToAttemptIfEligible } from "@/lib/session-engine";
+import { logError, logEvent } from "@/lib/telemetry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       let assistantContent = "";
+      const claudeStarted = Date.now();
       try {
         for await (const token of streamClaude({ system: systemPrompt, messages: history })) {
           assistantContent += token;
@@ -80,6 +82,19 @@ export async function POST(req: NextRequest) {
           data: { sessionId, role: "assistant", content: assistantContent },
         });
 
+        await logEvent({
+          kind: "coach.message.turn",
+          severity: "INFO",
+          path: "/api/coach/message",
+          durationMs: Date.now() - claudeStarted,
+          metadata: {
+            sessionId,
+            turnCount: updated.turnCount,
+            activityId: updated.activityId,
+            responseChars: assistantContent.length,
+            isTest: updated.isTest,
+          },
+        });
         controller.enqueue(
           encoder.encode(
             `data: ${JSON.stringify({
@@ -92,6 +107,10 @@ export async function POST(req: NextRequest) {
         );
         controller.close();
       } catch (err) {
+        await logError("coach.message.claude_failed", err, {
+          path: "/api/coach/message",
+          metadata: { sessionId, activityId: updated.activityId },
+        });
         const msg = err instanceof Error ? err.message : "Unknown error";
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
         controller.close();

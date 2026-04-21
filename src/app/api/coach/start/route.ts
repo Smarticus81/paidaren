@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
+import { logEvent } from "@/lib/telemetry";
 
 const StartSchema = z.object({ sessionId: z.string() });
 
@@ -17,6 +18,16 @@ export async function POST(req: NextRequest) {
     await prisma.coachSession.update({
       where: { id: sessionId },
       data: { startedAt: new Date() },
+    });
+    await logEvent({
+      kind: "coach.session.started",
+      severity: "INFO",
+      path: "/api/coach/start",
+      metadata: {
+        sessionId,
+        activityId: session.activityId,
+        isTest: session.isTest,
+      },
     });
   }
 

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { logEvent } from "@/lib/telemetry";
 
 const ActivitySchema = z.object({
   name: z.string().min(1).max(200),
@@ -23,6 +24,12 @@ export async function publishActivity(id: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
   await prisma.activity.update({ where: { id }, data: { published: true } });
+  await logEvent({
+    kind: "activity.published",
+    userId: session.user.id,
+    userEmail: session.user.email,
+    metadata: { activityId: id },
+  });
   revalidatePath(`/activities/${id}`);
 }
 
@@ -30,6 +37,12 @@ export async function unpublishActivity(id: string) {
   const session = await auth();
   if (!session?.user?.id) throw new Error("Unauthorized");
   await prisma.activity.update({ where: { id }, data: { published: false } });
+  await logEvent({
+    kind: "activity.unpublished",
+    userId: session.user.id,
+    userEmail: session.user.email,
+    metadata: { activityId: id },
+  });
   revalidatePath(`/activities/${id}`);
 }
 
