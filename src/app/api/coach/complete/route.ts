@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { generateSessionReport } from "@/lib/report-generator";
+import { logError, logEvent } from "@/lib/telemetry";
 
 const CompleteSchema = z.object({
   sessionId: z.string(),
@@ -9,6 +10,7 @@ const CompleteSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const startedAt = Date.now();
   const body = await req.json();
   const { sessionId, endReason } = CompleteSchema.parse(body);
 
@@ -23,7 +25,26 @@ export async function POST(req: NextRequest) {
     data: { completedAt: new Date(), endReason },
   });
 
-  const report = await generateSessionReport(sessionId);
-
-  return NextResponse.json({ reportReady: true, reportId: report.id });
+  try {
+    const report = await generateSessionReport(sessionId);
+    await logEvent({
+      kind: "coach.session.completed",
+      severity: "INFO",
+      path: "/api/coach/complete",
+      durationMs: Date.now() - startedAt,
+      metadata: {
+        sessionId,
+        endReason,
+        turnCount: session.turnCount,
+        isTest: session.isTest,
+      },
+    });
+    return NextResponse.json({ reportReady: true, reportId: report.id });
+  } catch (err) {
+    await logError("coach.session.report_failed", err, {
+      path: "/api/coach/complete",
+      metadata: { sessionId, endReason },
+    });
+    throw err;
+  }
 }

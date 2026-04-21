@@ -16,10 +16,13 @@ model User {
   emailVerified DateTime?
   image         String?
   role          UserRole  @default(INSTRUCTIONAL_DESIGNER)
+  disabled      Boolean   @default(false)
+  lastSeenAt    DateTime?
   accounts      Account[]
   sessions      Session[]
   createdActivities Activity[] @relation("CreatedBy")
   testSessions      CoachSession[] @relation("TestSessions")
+  telemetryEvents   TelemetryEvent[]
   createdAt     DateTime  @default(now())
 }
 
@@ -210,4 +213,38 @@ model SessionReport {
   gapsFlagged         String[]
 
   createdAt           DateTime     @default(now())
+}
+
+// ─── ADMIN: OBSERVABILITY & SETTINGS ────────────────────
+
+model TelemetryEvent {
+  id         String   @id @default(cuid())
+  kind       String
+  severity   EventSeverity @default(INFO)
+  message    String?
+  metadata   Json?
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userEmail  String?
+  path       String?
+  durationMs Int?
+  createdAt  DateTime @default(now())
+
+  @@index([kind, createdAt])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+enum EventSeverity {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+}
+
+model AdminSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+  updatedBy String?
 }

@@ -16,6 +16,18 @@ async function main() {
     },
   });
 
+  // Ensure the platform owner is always an enabled admin.
+  await prisma.user.upsert({
+    where: { email: "hazvimusoni@gmail.com" },
+    update: { role: "ADMIN", disabled: false },
+    create: {
+      email: "hazvimusoni@gmail.com",
+      name: "Hazvi Musoni",
+      emailVerified: new Date(),
+      role: "ADMIN",
+    },
+  });
+
   await prisma.activity.upsert({
     where: { id: "demo-negligence-activity" },
     update: {},

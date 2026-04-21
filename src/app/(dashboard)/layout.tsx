@@ -1,10 +1,12 @@
 import { auth, signOut } from "@/lib/auth";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { isAdmin } from "@/lib/admin";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect("/signin");
+  const admin = await isAdmin(session.user.id);
 
   return (
     <div className="min-h-screen bg-background">
@@ -29,6 +31,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <Link href="/settings" className="px-3 py-1.5 rounded-lg text-muted hover:text-foreground hover:bg-background transition-all">
                 Settings
               </Link>
+              {admin && (
+                <Link
+                  href="/admin"
+                  className="px-3 py-1.5 rounded-lg text-accent hover:bg-accent/5 transition-all font-medium"
+                >
+                  Admin
+                </Link>
+              )}
             </nav>
           </div>
           <div className="flex items-center gap-4">
