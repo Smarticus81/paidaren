@@ -38,6 +38,10 @@ function buildEmailText(url: string, host: string): string {
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  // Required on Vercel: the deployment is reached via many hostnames
+  // (custom domain, *.vercel.app previews) and we rely on Vercel's edge
+  // to set a trustworthy Host header.
+  trustHost: true,
   providers: [
     Resend({
       apiKey: RESEND_API_KEY,
